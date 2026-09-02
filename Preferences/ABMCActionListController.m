@@ -10,14 +10,18 @@ typedef struct {
 } ABMCAction;
 
 static const ABMCAction kBuiltInActions[] = {
-    { @"default",    @"System Default" },
-    { @"flashlight", @"Toggle Flashlight" },
-    { @"camera",     @"Open Camera" },
-    { @"silent",     @"Toggle Silent Mode" },
-    { @"screenshot", @"Take Screenshot" },
-    { @"lock",       @"Lock Device" },
-    { @"respring",   @"Respring" },
-    { @"none",       @"Do Nothing" },
+    { @"default",    @"系统默认" },
+    { @"flashlight", @"手电筒" },
+    { @"camera",     @"相机" },
+    { @"silent",     @"静音切换" },
+    { @"screenshot", @"截屏" },
+    { @"lock",       @"锁屏" },
+    { @"respring",   @"重启界面" },
+    { @"wechatScan", @"微信扫码" },
+    { @"wechatPay",  @"微信付款码" },
+    { @"alipayScan", @"支付宝扫码" },
+    { @"alipayPay",  @"支付宝付款码" },
+    { @"none",       @"无操作" },
 };
 
 @implementation ABMCActionListController {
@@ -42,7 +46,7 @@ static const ABMCAction kBuiltInActions[] = {
         NSMutableArray *specs = [NSMutableArray array];
 
         // Built-in actions group
-        PSSpecifier *group1 = [PSSpecifier groupSpecifierWithName:@"Actions"];
+        PSSpecifier *group1 = [PSSpecifier groupSpecifierWithName:@"内置动作"];
         [specs addObject:group1];
 
         NSUInteger count = sizeof(kBuiltInActions) / sizeof(kBuiltInActions[0]);
@@ -60,11 +64,11 @@ static const ABMCAction kBuiltInActions[] = {
         }
 
         // Custom actions group
-        PSSpecifier *group2 = [PSSpecifier groupSpecifierWithName:@"Custom"];
-        [group2 setProperty:@"Open a specific app by bundle ID or run a Siri Shortcut by name." forKey:@"footerText"];
+        PSSpecifier *group2 = [PSSpecifier groupSpecifierWithName:@"自定义动作"];
+        [group2 setProperty:@"填写应用包名唤起App、运行快捷指令或填入URL‑Scheme。" forKey:@"footerText"];
         [specs addObject:group2];
 
-        PSSpecifier *openApp = [PSSpecifier preferenceSpecifierNamed:@"Open App..."
+        PSSpecifier *openApp = [PSSpecifier preferenceSpecifierNamed:@"打开应用…"
                                                              target:self
                                                                 set:NULL
                                                                 get:NULL
@@ -75,7 +79,7 @@ static const ABMCAction kBuiltInActions[] = {
         openApp->action = @selector(selectAction:);
         [specs addObject:openApp];
 
-        PSSpecifier *shortcut = [PSSpecifier preferenceSpecifierNamed:@"Run Shortcut..."
+        PSSpecifier *shortcut = [PSSpecifier preferenceSpecifierNamed:@"运行快捷指令…"
                                                               target:self
                                                                  set:NULL
                                                                  get:NULL
@@ -85,6 +89,17 @@ static const ABMCAction kBuiltInActions[] = {
         [shortcut setProperty:@"customShortcut" forKey:@"actionID"];
         shortcut->action = @selector(selectAction:);
         [specs addObject:shortcut];
+
+        PSSpecifier *openURL = [PSSpecifier preferenceSpecifierNamed:@"打开 URL…"
+                                                             target:self
+                                                                set:NULL
+                                                                get:NULL
+                                                             detail:Nil
+                                                               cell:PSStaticTextCell
+                                                               edit:Nil];
+        [openURL setProperty:@"customURL" forKey:@"actionID"];
+        openURL->action = @selector(selectAction:);
+        [specs addObject:openURL];
 
         _specifiers = specs;
     }
@@ -103,6 +118,8 @@ static const ABMCAction kBuiltInActions[] = {
         cell.accessoryType = UITableViewCellAccessoryCheckmark;
     } else if ([actionID isEqualToString:@"customShortcut"] && [_currentValue hasPrefix:@"shortcut:"]) {
         cell.accessoryType = UITableViewCellAccessoryCheckmark;
+    } else if ([actionID isEqualToString:@"customURL"] && [_currentValue hasPrefix:@"url:"]) {
+        cell.accessoryType = UITableViewCellAccessoryCheckmark;
     } else {
         cell.accessoryType = UITableViewCellAccessoryNone;
     }
@@ -114,9 +131,11 @@ static const ABMCAction kBuiltInActions[] = {
     NSString *actionID = [specifier propertyForKey:@"actionID"];
 
     if ([actionID isEqualToString:@"customApp"]) {
-        [self promptForCustomValue:@"Open App" message:@"Enter the app bundle ID (e.g. com.apple.Music):" prefix:@"app:"];
+        [self promptForCustomValue:@"打开应用" message:@"输入App包名：" prefix:@"app:"];
     } else if ([actionID isEqualToString:@"customShortcut"]) {
-        [self promptForCustomValue:@"Run Shortcut" message:@"Enter the Siri Shortcut name:" prefix:@"shortcut:"];
+        [self promptForCustomValue:@"运行快捷指令" message:@"输入快捷指令名称：" prefix:@"shortcut:"];
+    } else if ([actionID isEqualToString:@"customURL"]) {
+        [self promptForCustomValue:@"打开 URL" message:@"请输入完整 URL Scheme，例如：weixin://scanqrcode" prefix:@"url:"];
     } else {
         [self saveAction:actionID];
     }
@@ -136,8 +155,8 @@ static const ABMCAction kBuiltInActions[] = {
         }
     }];
 
-    [alert addAction:[UIAlertAction actionWithTitle:@"Cancel" style:UIAlertActionStyleCancel handler:nil]];
-    [alert addAction:[UIAlertAction actionWithTitle:@"Save" style:UIAlertActionStyleDefault handler:^(UIAlertAction *action) {
+    [alert addAction:[UIAlertAction actionWithTitle:@"取消" style:UIAlertActionStyleCancel handler:nil]];
+    [alert addAction:[UIAlertAction actionWithTitle:@"保存" style:UIAlertActionStyleDefault handler:^(UIAlertAction *action) {
         NSString *value = alert.textFields.firstObject.text;
         if (value.length > 0) {
             [self saveAction:[NSString stringWithFormat:@"%@%@", prefix, value]];

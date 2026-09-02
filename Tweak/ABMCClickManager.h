@@ -3,6 +3,7 @@
 typedef NS_ENUM(NSInteger, ABMCClickType) {
     ABMCClickTypeSingle = 1,
     ABMCClickTypeDouble = 2,
+    ABMCClickTypeLongPress = 3,
 };
 
 typedef void (^ABMCClickCallback)(ABMCClickType clickType);
@@ -10,7 +11,6 @@ typedef void (^ABMCClickCallback)(ABMCClickType clickType);
 @interface ABMCClickManager : NSObject
 
 @property (nonatomic, copy) ABMCClickCallback clickCallback;
-@property (nonatomic, assign) NSTimeInterval clickTimeout;
 
 + (instancetype)sharedManager;
 - (void)registerClick;

@@ -11,6 +11,7 @@ BOOL ABMCPerformingDefaultAction = NO;
 @implementation ABMCActionExecutor {
     NSString *_singleAction;
     NSString *_doubleAction;
+    NSString *_longPressAction;
 }
 
 + (instancetype)sharedExecutor {
@@ -34,9 +35,11 @@ BOOL ABMCPerformingDefaultAction = NO;
 
     CFStringRef single = (CFStringRef)CFPreferencesCopyAppValue(CFSTR("singleClickAction"), PREFS_DOMAIN);
     CFStringRef dbl = (CFStringRef)CFPreferencesCopyAppValue(CFSTR("doubleClickAction"), PREFS_DOMAIN);
+    CFStringRef longPress = (CFStringRef)CFPreferencesCopyAppValue(CFSTR("longPressAction"), PREFS_DOMAIN);
 
     _singleAction = single ? (__bridge_transfer NSString *)single : @"default";
     _doubleAction = dbl ? (__bridge_transfer NSString *)dbl : @"none";
+    _longPressAction = longPress ? (__bridge_transfer NSString *)longPress : @"default";
 }
 
 - (NSString *)actionForClickCount:(NSInteger)count {
@@ -50,6 +53,13 @@ BOOL ABMCPerformingDefaultAction = NO;
 - (void)executeActionForClickType:(NSInteger)clickType {
     NSString *action = [self actionForClickCount:clickType];
     [self executeAction:action];
+}
+
+- (BOOL)executeConfiguredLongPressAction {
+    // "default" preserves SpringBoard's untouched native long-press path.
+    if (!_longPressAction || [_longPressAction isEqualToString:@"default"]) return NO;
+    [self executeAction:_longPressAction];
+    return YES;
 }
 
 - (void)executeAction:(NSString *)actionID {
@@ -69,8 +79,18 @@ BOOL ABMCPerformingDefaultAction = NO;
         [self lockDevice];
     } else if ([actionID isEqualToString:@"respring"]) {
         [self respring];
+    } else if ([actionID isEqualToString:@"wechatScan"]) {
+        [self openURLString:@"weixin://scanqrcode"];
+    } else if ([actionID isEqualToString:@"wechatPay"]) {
+        [self openURLString:@"weixin://widget/pay"];
+    } else if ([actionID isEqualToString:@"alipayScan"]) {
+        [self openURLString:@"alipay://platformapi/startapp?appId=10000007"];
+    } else if ([actionID isEqualToString:@"alipayPay"]) {
+        [self openURLString:@"alipay://platformapi/startapp?appId=20000056"];
     } else if ([actionID hasPrefix:@"app:"]) {
         [self openApp:[actionID substringFromIndex:4]];
+    } else if ([actionID hasPrefix:@"url:"]) {
+        [self openURLString:[actionID substringFromIndex:4]];
     } else if ([actionID hasPrefix:@"shortcut:"]) {
         [self runShortcut:[actionID substringFromIndex:9]];
     }
@@ -274,6 +294,23 @@ BOOL ABMCPerformingDefaultAction = NO;
                 ((BOOL (*)(id, SEL, id))objc_msgSend)(instance, openSel, bid);
             }
         });
+    } @catch (NSException *e) {}
+}
+
+#pragma mark - Open URL
+
+- (void)openURLString:(NSString *)urlString {
+    if (!urlString.length) return;
+
+    NSURL *url = [NSURL URLWithString:urlString];
+    if (!url) return;
+
+    @try {
+        id app = [UIApplication sharedApplication];
+        SEL openSel = NSSelectorFromString(@"openURL:options:completionHandler:");
+        if ([app respondsToSelector:openSel]) {
+            ((void (*)(id, SEL, id, id, id))objc_msgSend)(app, openSel, url, @{}, nil);
+        }
     } @catch (NSException *e) {}
 }
 

@@ -5,39 +5,35 @@
 #define PREFS_NOTIFICATION @"com.huynguyen.actionbuttonmulticlick/prefsChanged"
 
 static NSString *titleForActionID(NSString *actionID) {
-    if (!actionID || [actionID isEqualToString:@"none"]) return @"Do Nothing";
-    if ([actionID isEqualToString:@"default"]) return @"System Default";
-    if ([actionID isEqualToString:@"flashlight"]) return @"Toggle Flashlight";
-    if ([actionID isEqualToString:@"camera"]) return @"Open Camera";
-    if ([actionID isEqualToString:@"silent"]) return @"Toggle Silent Mode";
-    if ([actionID isEqualToString:@"screenshot"]) return @"Take Screenshot";
-    if ([actionID isEqualToString:@"lock"]) return @"Lock Device";
-    if ([actionID isEqualToString:@"respring"]) return @"Respring";
-    if ([actionID hasPrefix:@"app:"]) return [NSString stringWithFormat:@"App: %@", [actionID substringFromIndex:4]];
-    if ([actionID hasPrefix:@"shortcut:"]) return [NSString stringWithFormat:@"Shortcut: %@", [actionID substringFromIndex:9]];
+    if (!actionID || [actionID isEqualToString:@"none"]) return @"无操作";
+    if ([actionID isEqualToString:@"default"]) return @"系统默认";
+    if ([actionID isEqualToString:@"flashlight"]) return @"手电筒";
+    if ([actionID isEqualToString:@"camera"]) return @"相机";
+    if ([actionID isEqualToString:@"silent"]) return @"静音切换";
+    if ([actionID isEqualToString:@"screenshot"]) return @"截屏";
+    if ([actionID isEqualToString:@"lock"]) return @"锁屏";
+    if ([actionID isEqualToString:@"respring"]) return @"重启界面";
+    if ([actionID isEqualToString:@"wechatScan"]) return @"微信扫码";
+    if ([actionID isEqualToString:@"wechatPay"]) return @"微信付款码";
+    if ([actionID isEqualToString:@"alipayScan"]) return @"支付宝扫码";
+    if ([actionID isEqualToString:@"alipayPay"]) return @"支付宝付款码";
+    if ([actionID hasPrefix:@"app:"]) return [NSString stringWithFormat:@"打开应用：%@", [actionID substringFromIndex:4]];
+    if ([actionID hasPrefix:@"shortcut:"]) return [NSString stringWithFormat:@"运行快捷指令：%@", [actionID substringFromIndex:9]];
+    if ([actionID hasPrefix:@"url:"]) return [NSString stringWithFormat:@"打开 URL：%@", [actionID substringFromIndex:4]];
     return actionID;
 }
 
-static void calibrationDoneCallback(CFNotificationCenterRef center, void *observer, CFStringRef name, const void *object, CFDictionaryRef userInfo) {
-    ABMCPreferences *self = (__bridge ABMCPreferences *)observer;
-    [self calibrationDidFinish];
-}
-
-@implementation ABMCPreferences {
-    BOOL _waitingForCalibration;
-}
+@implementation ABMCPreferences
 
 - (NSArray *)specifiers {
     if (!_specifiers) {
         NSMutableArray *specs = [NSMutableArray array];
 
-        // Click Actions group
-        PSSpecifier *group1 = [PSSpecifier groupSpecifierWithName:@"Click Actions"];
-        [group1 setProperty:@"Configure what each click type does. Long press is unchanged." forKey:@"footerText"];
+        PSSpecifier *group1 = [PSSpecifier groupSpecifierWithName:@"按键动作"];
+        [group1 setProperty:@"单击在松开后最多等待 240 毫秒；第二次松开后会立即执行双击。长按仍由系统原生时机识别。" forKey:@"footerText"];
         [specs addObject:group1];
 
-        // Single Click
-        PSSpecifier *single = [PSSpecifier preferenceSpecifierNamed:@"Single Click"
+        PSSpecifier *single = [PSSpecifier preferenceSpecifierNamed:@"单击动作"
                                                              target:self
                                                                 set:NULL
                                                                 get:NULL
@@ -49,8 +45,7 @@ static void calibrationDoneCallback(CFNotificationCenterRef center, void *observ
         [single setProperty:PREFS_DOMAIN forKey:@"defaults"];
         [specs addObject:single];
 
-        // Double Click
-        PSSpecifier *dbl = [PSSpecifier preferenceSpecifierNamed:@"Double Click"
+        PSSpecifier *dbl = [PSSpecifier preferenceSpecifierNamed:@"双击动作"
                                                           target:self
                                                              set:NULL
                                                              get:NULL
@@ -62,38 +57,17 @@ static void calibrationDoneCallback(CFNotificationCenterRef center, void *observ
         [dbl setProperty:PREFS_DOMAIN forKey:@"defaults"];
         [specs addObject:dbl];
 
-        // Timing group
-        PSSpecifier *group2 = [PSSpecifier groupSpecifierWithName:@"Timing"];
-        [group2 setProperty:@"How long to wait for a second click before triggering single click. Tap Calibrate to auto-detect your natural double-click speed." forKey:@"footerText"];
-        [specs addObject:group2];
-
-        // Click Timeout slider
-        PSSpecifier *timeout = [PSSpecifier preferenceSpecifierNamed:@"Click Timeout"
-                                                              target:self
-                                                                 set:@selector(setPreferenceValue:specifier:)
-                                                                 get:@selector(readPreferenceValue:)
-                                                              detail:Nil
-                                                                cell:PSSliderCell
-                                                                edit:Nil];
-        [timeout setProperty:@"clickTimeout" forKey:@"key"];
-        [timeout setProperty:@0.5 forKey:@"min"];
-        [timeout setProperty:@2.0 forKey:@"max"];
-        [timeout setProperty:@1.5 forKey:@"default"];
-        [timeout setProperty:PREFS_DOMAIN forKey:@"defaults"];
-        [timeout setProperty:PREFS_NOTIFICATION forKey:@"PostNotification"];
-        [timeout setProperty:@YES forKey:@"showValue"];
-        [specs addObject:timeout];
-
-        // Calibrate button
-        PSSpecifier *calibrate = [PSSpecifier preferenceSpecifierNamed:@"Calibrate Double Click"
-                                                               target:self
-                                                                  set:NULL
-                                                                  get:NULL
-                                                               detail:Nil
-                                                                 cell:PSButtonCell
-                                                                 edit:Nil];
-        calibrate->action = @selector(startCalibration);
-        [specs addObject:calibrate];
+        PSSpecifier *longPress = [PSSpecifier preferenceSpecifierNamed:@"长按动作"
+                                                                target:self
+                                                                   set:NULL
+                                                                   get:NULL
+                                                                detail:NSClassFromString(@"ABMCActionListController")
+                                                                  cell:PSLinkCell
+                                                                  edit:Nil];
+        [longPress setProperty:@"longPressAction" forKey:@"key"];
+        [longPress setProperty:@"default" forKey:@"default"];
+        [longPress setProperty:PREFS_DOMAIN forKey:@"defaults"];
+        [specs addObject:longPress];
 
         _specifiers = specs;
     }
@@ -102,73 +76,7 @@ static void calibrationDoneCallback(CFNotificationCenterRef center, void *observ
 
 - (void)viewWillAppear:(BOOL)animated {
     [super viewWillAppear:animated];
-
-    CFNotificationCenterAddObserver(
-        CFNotificationCenterGetDarwinNotifyCenter(),
-        (__bridge const void *)self,
-        calibrationDoneCallback,
-        CFSTR("com.huynguyen.actionbuttonmulticlick/calibrationDone"),
-        NULL,
-        CFNotificationSuspensionBehaviorDeliverImmediately
-    );
-
     [self reload];
-}
-
-- (void)viewWillDisappear:(BOOL)animated {
-    [super viewWillDisappear:animated];
-
-    CFNotificationCenterRemoveObserver(
-        CFNotificationCenterGetDarwinNotifyCenter(),
-        (__bridge const void *)self,
-        CFSTR("com.huynguyen.actionbuttonmulticlick/calibrationDone"),
-        NULL
-    );
-}
-
-- (void)startCalibration {
-    _waitingForCalibration = YES;
-
-    UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"Calibrate"
-                                                                  message:@"Press the Action Button twice at your natural double-click speed.\n\nThe timeout will be adjusted automatically."
-                                                           preferredStyle:UIAlertControllerStyleAlert];
-    [alert addAction:[UIAlertAction actionWithTitle:@"Cancel" style:UIAlertActionStyleCancel handler:^(UIAlertAction *a) {
-        self->_waitingForCalibration = NO;
-    }]];
-    [alert addAction:[UIAlertAction actionWithTitle:@"Ready" style:UIAlertActionStyleDefault handler:^(UIAlertAction *a) {
-        // Tell SpringBoard to enter calibration mode
-        CFNotificationCenterPostNotification(CFNotificationCenterGetDarwinNotifyCenter(),
-                                             CFSTR("com.huynguyen.actionbuttonmulticlick/startCalibration"),
-                                             NULL, NULL, YES);
-    }]];
-    [self presentViewController:alert animated:YES completion:nil];
-}
-
-- (void)calibrationDidFinish {
-    if (!_waitingForCalibration) return;
-    _waitingForCalibration = NO;
-
-    dispatch_async(dispatch_get_main_queue(), ^{
-        // Read the result
-        CFPreferencesAppSynchronize((__bridge CFStringRef)PREFS_DOMAIN);
-
-        CFPropertyListRef intervalRef = CFPreferencesCopyAppValue(CFSTR("lastCalibrationInterval"), (__bridge CFStringRef)PREFS_DOMAIN);
-        CFPropertyListRef timeoutRef = CFPreferencesCopyAppValue(CFSTR("lastCalibrationTimeout"), (__bridge CFStringRef)PREFS_DOMAIN);
-
-        NSString *intervalStr = intervalRef ? (__bridge_transfer NSString *)intervalRef : @"?";
-        NSNumber *timeoutNum = timeoutRef ? (__bridge_transfer NSNumber *)timeoutRef : @(1.5);
-
-        NSString *msg = [NSString stringWithFormat:@"Your double-click interval: %@s\nTimeout set to: %.2fs (interval + 0.3s buffer)", intervalStr, timeoutNum.doubleValue];
-
-        UIAlertController *result = [UIAlertController alertControllerWithTitle:@"Calibration Done"
-                                                                       message:msg
-                                                                preferredStyle:UIAlertControllerStyleAlert];
-        [result addAction:[UIAlertAction actionWithTitle:@"OK" style:UIAlertActionStyleDefault handler:nil]];
-        [self presentViewController:result animated:YES completion:nil];
-
-        // Refresh the slider
-        [self reloadSpecifiers];
-    });
 }
 
 - (void)reloadSpecifiers {
