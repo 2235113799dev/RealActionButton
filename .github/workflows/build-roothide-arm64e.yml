@@ -47,8 +47,7 @@ jobs:
           make package FINALPACKAGE=1 THEOS_PACKAGE_SCHEME=roothide ARCHS=arm64e
           mkdir -p out
           find packages -maxdepth 1 -type f -name '*.deb' -exec cp {} out/ \;
-          test "$(find out -maxdepth 1 -name '*.deb' | wc -l)" -eq 1
-          dpkg-deb -I out/*.deb | grep -E '^ Architecture:.*arm64e'
+          test "$(find out -maxdepth 1 -type f -name '*_iphoneos-arm64e.deb' | wc -l)" -eq 1
 
       - name: Upload RootHide arm64e deb
         uses: actions/upload-artifact@v4
